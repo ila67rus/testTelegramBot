@@ -4,12 +4,13 @@ import sqlite3
 
 bot = telebot.TeleBot('7331998507:AAGPULwRv13Qx8PSQNxh9o8CJfX-ImfFHk4')
 name = None
-@bot.message_handler()
+flag = False
+@bot.message_handler(commands=['start'])
 def start(message):
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton('Зарегистрироваться',callback_data='reg')
     btn2 = types.InlineKeyboardButton('Авторизоваться',callback_data='auth')
-    btn3 = types.KeyboardButton('/start')
+    btn3 = types.InlineKeyboardButton('Установить роль',callback_data='role')
     
     markup.add(btn1, btn2)
     bot.send_message(message.chat.id, 'Привет, выбери команду!', reply_markup=markup)
@@ -17,10 +18,10 @@ def start(message):
     
 @bot.callback_query_handler(func = lambda call: call.data == 'reg')
 def register(call):
-    conn = sqlite3.connect('mybase.db')
+    conn = sqlite3.connect('mybase2.db')
     cur = conn.cursor()
     
-    cur.execute('CREATE TABLE IF NOT EXISTS users(id int auto_increment primary key, name varchar(50), pass varchar(50))')
+    cur.execute('CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, name varchar(50), pass varchar(50), role TEXT DEFAULT "user")')
     conn.commit()
     cur.close()
     conn.close()
@@ -37,7 +38,7 @@ def user_name(message):
 def user_psw(message):
     password = message.text.strip()  
 
-    conn = sqlite3.connect('mybase.db')
+    conn = sqlite3.connect('mybase2.db')
     cur = conn.cursor()
     
     cur.execute('INSERT INTO users (name,pass) VALUES ("%s","%s")'% (name,password))
@@ -68,13 +69,12 @@ def get_login(message):
 def get_pass(message):
     password = message.text.strip()
     
-    conn = sqlite3.connect('mybase.db')
+    conn = sqlite3.connect('mybase2.db')
     cur = conn.cursor()
     
     cur.execute('SELECT * FROM users')
-    users = cur.fetchall()
+    users = cur.fetchall()    
     
-    flag = False
     for el in users:
         if login==el[1] and password==el[2]:
             flag = True
@@ -84,12 +84,14 @@ def get_pass(message):
         bot.send_message(message.chat.id,'Авторизация успешна')
         bot.register_next_step_handler(message, start)
     else:
-        bot.send_message(message.chat.id, 'Неверные данные или пользователь не зарегистрирован !')        
+        bot.send_message(message.chat.id, 'Неверные данные или пользователь не зарегистрирован ! Введите команду /start и попробуйте заново.')        
         bot.register_next_step_handler(message, start)
         
     cur.close()
     conn.close()
 
+if flag == True:
+    
 bot.polling(none_stop=True)
 
 
