@@ -4,7 +4,7 @@ import sqlite3
 
 bot = telebot.TeleBot('7331998507:AAGPULwRv13Qx8PSQNxh9o8CJfX-ImfFHk4')
 name = None
-flag = False
+role =''
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.InlineKeyboardMarkup()
@@ -40,15 +40,21 @@ def user_psw(message):
 
     conn = sqlite3.connect('mybase2.db')
     cur = conn.cursor()
-    
-    cur.execute('INSERT INTO users (name,pass) VALUES ("%s","%s")'% (name,password))
-    conn.commit()
-    cur.close()
-    conn.close()
-    
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton('Авторизоваться',callback_data='auth'))
-    bot.send_message(message.chat.id, 'Пользователь зарегистрирован!',reply_markup=markup)
+    cur.execute('SELECT * FROM users')
+    users = cur.fetchall()   
+    for el in users:
+        if name == el[1]:
+            bot.send_message(message.chat.id,'Такой пользователь уже существует')
+            bot.register_next_step_handler(message,start)
+            break
+    else:    
+        cur.execute('INSERT INTO users (name,pass,role) VALUES ("%s","%s","%s")'% (name,password,'user'))
+        conn.commit()
+        cur.close()
+        conn.close()    
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton('Авторизоваться',callback_data='auth'))
+        bot.send_message(message.chat.id, 'Пользователь зарегистрирован!',reply_markup=markup)
 
 @bot.message_handler(func=lambda message: message.text == 'Авторизоваться')    
 def auth_request(message):
@@ -74,15 +80,26 @@ def get_pass(message):
     
     cur.execute('SELECT * FROM users')
     users = cur.fetchall()    
-    
+    global role
+    flag = False
     for el in users:
         if login==el[1] and password==el[2]:
             flag = True
+            role = el[3]            
             break
-        
-    if flag:
+        print(el)
+    print(role,flag)   
+    if flag == True:       
         bot.send_message(message.chat.id,'Авторизация успешна')
-        bot.register_next_step_handler(message, start)
+        if role == 'admin':
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton('Список пользователей',callback_data='role'))
+            markup.add(types.InlineKeyboardButton('Профиль',callback_data='profile'))
+            bot.send_message(message.chat.id,'Здраствуй Администратор',reply_markup=markup)
+        elif role == 'user':
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton('Профиль',callback_data='profile'))
+            bot.send_message(message.chat.id,'Здраствуй пользователь',reply_markup=markup)
     else:
         bot.send_message(message.chat.id, 'Неверные данные или пользователь не зарегистрирован ! Введите команду /start и попробуйте заново.')        
         bot.register_next_step_handler(message, start)
@@ -90,7 +107,35 @@ def get_pass(message):
     cur.close()
     conn.close()
 
-if flag == True:
+@bot.callback_query_handler(func = lambda call: call.data == 'role')
+def callback(call):
+    conn = sqlite3.connect('mybase2.db')
+    cur = conn.cursor()
+    
+    cur.execute('SELECT * FROM users')
+    users = cur.fetchall()
+    
+    info =''
+    for el in users:
+        info+= f'Имя {el[1]} - Роль {el[3]}\n'
+    cur.close()
+    conn.close()
+    bot.send_message(call.message.chat.id,info)
+
+@bot.callback_query_handler(func = lambda call: call.data == 'profile')
+def callback(call):
+    conn = sqlite3.connect('mybase2.db')
+    cur = conn.cursor()
+    
+    cur.execute('SELECT * FROM users WHERE name = ?',(login,))
+    users = cur.fetchall()
+    
+    info =''
+    for el in users:
+        info+= f'Имя {el[1]} - Роль {el[3]}\n'
+    cur.close()
+    conn.close()
+    bot.send_message(call.message.chat.id,info)
     
 bot.polling(none_stop=True)
 
