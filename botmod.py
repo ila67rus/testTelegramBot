@@ -10,18 +10,30 @@ dp = Dispatcher(bot)
 # Регулярное выражение для обнаружения ссылок
 URL_REGEX = re.compile(r'(https?://\S+)')
 
+# Список запретных слов
+FORBIDDEN_WORDS = ['пидр', 'хуй']  # Замените на свои слова
+
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
-async def filter_links(message: types.Message):
-    # Если сообщение содержит ссылку, удаляем его
+async def filter_messages(message: types.Message):
+    # Проверка на наличие ссылки
     if URL_REGEX.search(message.text):
-        try:
-            await message.delete()
-            # Отправляем уведомление в тот же чат
-            
-        except Exception as e:
-            # Логируем ошибку, если произошла проблема
-            print(f"Произошла ошибка: {e}")
+        await delete_and_notify(message)
+        return
+
+    # Проверка на наличие запретных слов
+    for word in FORBIDDEN_WORDS:
+        if word in message.text.lower():  # Приводим текст к нижнему регистру для нечувствительности к регистру
+            await delete_and_notify(message)
+            return
+
+async def delete_and_notify(message: types.Message):
+    try:
+        await message.delete()
+        
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
 
